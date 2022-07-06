@@ -25,6 +25,8 @@
 
 #include "juce_mac_CGMetalLayerRenderer.h"
 
+int GLOBAL_keycode_of_last_event;   // Added by DECYNE4
+
 @interface NSEvent (DeviceDelta)
 - (float)deviceDeltaX;
 - (float)deviceDeltaY;
@@ -832,9 +834,11 @@ public:
 
     bool handleKeyEvent (NSEvent* ev, bool isKeyDown)
     {
+        GLOBAL_keycode_of_last_event = [ev keyCode];       // Added by DECYNE4
+
         auto unicode = nsStringToJuce ([ev characters]);
         auto keyCode = getKeyCodeFromEvent (ev);
-
+        
        #if JUCE_DEBUG_KEYCODES
         DBG ("unicode: " + unicode + " " + String::toHexString ((int) unicode[0]));
         auto unmodified = nsStringToJuce ([ev charactersIgnoringModifiers]);
@@ -881,6 +885,9 @@ public:
 
             if (handleKeyUpOrDown (false))
                 return true;
+        } else {
+            if (handleKeyUpOrDown (isKeyDown))
+                return true;
         }
 
         return false;
@@ -919,6 +926,8 @@ public:
 
     void redirectModKeyChange (NSEvent* ev)
     {
+        GLOBAL_keycode_of_last_event = [ev keyCode];       // Added by DECYNE4
+
         // (need to retain this in case a modal loop runs and our event object gets lost)
         const NSUniquePtr<NSEvent> r ([ev retain]);
 
