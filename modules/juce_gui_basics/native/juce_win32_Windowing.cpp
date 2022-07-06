@@ -27,6 +27,8 @@
  #include <juce_audio_plugin_client/AAX/juce_AAX_Modifier_Injector.h>
 #endif
 
+int GLOBAL_keycode_of_last_event;       // ADDED BY DECYNE4
+
 namespace juce
 {
 
@@ -932,8 +934,6 @@ const int KeyPress::playKey                 = 0x30000;
 const int KeyPress::stopKey                 = 0x30001;
 const int KeyPress::fastForwardKey          = 0x30002;
 const int KeyPress::rewindKey               = 0x30003;
-
-int GLOBAL_keycode_of_last_event;       // ADDED BY DECYNE4
 
 //==============================================================================
 class WindowsBitmapImage  : public ImagePixelData
