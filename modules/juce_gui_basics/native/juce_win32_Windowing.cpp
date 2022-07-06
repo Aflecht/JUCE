@@ -933,6 +933,7 @@ const int KeyPress::stopKey                 = 0x30001;
 const int KeyPress::fastForwardKey          = 0x30002;
 const int KeyPress::rewindKey               = 0x30003;
 
+int GLOBAL_keycode_of_last_event;       // ADDED BY DECYNE4
 
 //==============================================================================
 class WindowsBitmapImage  : public ImagePixelData
@@ -4013,6 +4014,7 @@ private:
             //==============================================================================
             case WM_KEYDOWN:
             case WM_SYSKEYDOWN:
+                GLOBAL_keycode_of_last_event = ((lParam & 0xFF0000) >> 16);         // ADDED BY DECYNE4
                 if (doKeyDown (wParam))
                     return 0;
 
@@ -4021,6 +4023,7 @@ private:
 
             case WM_KEYUP:
             case WM_SYSKEYUP:
+                GLOBAL_keycode_of_last_event = ((lParam & 0xFF0000) >> 16);         // ADDED BY DECYNE4
                 if (doKeyUp (wParam))
                     return 0;
 
