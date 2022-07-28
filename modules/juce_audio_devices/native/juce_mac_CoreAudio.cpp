@@ -1034,7 +1034,7 @@ public:
     {
         int best = 0;
 
-        for (int i = 0; best < 512 && i < internal->bufferSizes.size(); ++i)
+        for (int i = 0; best < 256 && i < internal->bufferSizes.size(); ++i)
             best = internal->bufferSizes.getUnchecked(i);
 
         if (best == 0)
