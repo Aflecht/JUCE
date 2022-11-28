@@ -23,6 +23,8 @@
   ==============================================================================
 */
 
+int GLOBAL_keycode_of_last_event = 0;   // Added by Decyne4
+
 namespace juce
 {
 
@@ -3355,6 +3357,8 @@ void XWindowSystem::handleKeyPressEvent (LinuxComponentPeer* peer, XKeyEvent& ke
     bool keyDownChange = false;
     KeySym sym;
 
+    GLOBAL_keycode_of_last_event = keyEvent.keycode;
+
     {
         XWindowSystemUtilities::ScopedXLock xLock;
         updateKeyStates ((int) keyEvent.keycode, true);
@@ -3485,6 +3489,8 @@ void XWindowSystem::handleKeyReleaseEvent (LinuxComponentPeer* peer, const XKeyE
 
     if (! isKeyReleasePartOfAutoRepeat)
     {
+        GLOBAL_keycode_of_last_event = keyEvent.keycode;
+
         updateKeyStates ((int) keyEvent.keycode, false);
         KeySym sym;
 
