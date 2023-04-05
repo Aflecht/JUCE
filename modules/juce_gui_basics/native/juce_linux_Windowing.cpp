@@ -23,6 +23,8 @@
   ==============================================================================
 */
 
+int GLOBAL_keycode_of_last_event;       // Added by DECYNE4
+
 namespace juce
 {
 
