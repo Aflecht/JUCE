@@ -32,8 +32,6 @@ struct WindowingHelpers
 
     static Image createIconForFile (const File& file);
 
-    static bool areThereAnyAlwaysOnTopWindows();
-
     #if JUCE_WINDOWS
      static bool isEmbeddedInForegroundProcess (Component* c);
      static bool isWindowOnCurrentVirtualDesktop (void*);

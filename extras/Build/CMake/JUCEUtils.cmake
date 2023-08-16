@@ -543,7 +543,7 @@ function(_juce_execute_juceaide)
         ERROR_VARIABLE output)
 
     if(result_variable)
-        message(FATAL_ERROR "Running juceaide failed:\n${output}")
+        message(FATAL_ERROR "Running juceaide failed:\ncommand: ${juceaide_location} ${ARGN}\noutput: ${output}")
     endif()
 endfunction()
 
@@ -754,29 +754,29 @@ function(_juce_configure_bundle source_target dest_target)
     endif()
 endfunction()
 
-function(_juce_add_resources_rc target)
+function(_juce_add_resources_rc source_target dest_target)
     if(NOT CMAKE_SYSTEM_NAME STREQUAL "Windows")
         return()
     endif()
 
-    get_target_property(juce_library_code ${target} JUCE_GENERATED_SOURCES_DIRECTORY)
-    set(input_info_file "$<TARGET_PROPERTY:${target},JUCE_INFO_FILE>")
+    get_target_property(juce_library_code ${source_target} JUCE_GENERATED_SOURCES_DIRECTORY)
+    get_target_property(input_info_file ${source_target} JUCE_INFO_FILE)
 
-    get_target_property(generated_icon ${target} JUCE_ICON_FILE)
+    get_target_property(generated_icon ${source_target} JUCE_ICON_FILE)
     set(dependency)
 
     if(generated_icon)
         set(dependency DEPENDS "${generated_icon}")
     endif()
 
-    set(resource_rc_file "${juce_library_code}/resources.rc")
+    set(resource_rc_file "${juce_library_code}/${dest_target}_resources.rc")
 
     add_custom_command(OUTPUT "${resource_rc_file}"
         COMMAND juce::juceaide rcfile "${input_info_file}" "${resource_rc_file}"
         ${dependency}
         VERBATIM)
 
-    target_sources(${target} PRIVATE "${resource_rc_file}")
+    target_sources(${dest_target} PRIVATE "${resource_rc_file}")
 endfunction()
 
 function(_juce_configure_app_bundle source_target dest_target)
@@ -925,7 +925,7 @@ function(_juce_add_lv2_manifest_helper_target)
     endif()
 
     get_target_property(module_path juce::juce_audio_plugin_client INTERFACE_JUCE_MODULE_PATH)
-    set(source "${module_path}/juce_audio_plugin_client/LV2/juce_LV2TurtleDumpProgram.cpp")
+    set(source "${module_path}/juce_audio_plugin_client/LV2/juce_LV2ManifestHelper.cpp")
     add_executable(juce_lv2_helper "${source}")
     add_executable(juce::juce_lv2_helper ALIAS juce_lv2_helper)
     target_compile_features(juce_lv2_helper PRIVATE cxx_std_17)
@@ -933,6 +933,52 @@ function(_juce_add_lv2_manifest_helper_target)
     set(THREADS_PREFER_PTHREAD_FLAG ON)
     find_package(Threads REQUIRED)
     target_link_libraries(juce_lv2_helper PRIVATE Threads::Threads ${CMAKE_DL_LIBS})
+endfunction()
+
+# ==================================================================================================
+
+function(_juce_add_vst3_manifest_helper_target)
+    if(TARGET juce_vst3_helper
+       OR (CMAKE_SYSTEM_NAME STREQUAL "iOS")
+       OR (CMAKE_SYSTEM_NAME STREQUAL "Android")
+       OR (CMAKE_SYSTEM_NAME MATCHES ".*BSD"))
+        return()
+    endif()
+
+    get_target_property(module_path juce::juce_audio_processors INTERFACE_JUCE_MODULE_PATH)
+    set(vst3_dir "${module_path}/juce_audio_processors/format_types/VST3_SDK")
+
+    set(extension "cpp")
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        set(extension "mm")
+    endif()
+
+    set(source "${module_path}/juce_audio_plugin_client/VST3/juce_VST3ManifestHelper.${extension}")
+
+    add_executable(juce_vst3_helper "${source}")
+    add_executable(juce::juce_vst3_helper ALIAS juce_vst3_helper)
+
+    target_include_directories(juce_vst3_helper PRIVATE "${vst3_dir}" "${module_path}")
+
+    add_library(juce_interface_definitions INTERFACE)
+    _juce_add_standard_defs(juce_interface_definitions)
+    target_link_libraries(juce_vst3_helper PRIVATE juce_interface_definitions)
+    target_compile_features(juce_vst3_helper PRIVATE cxx_std_17)
+
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        _juce_link_frameworks(juce_vst3_helper PRIVATE Cocoa)
+        target_compile_options(juce_vst3_helper PRIVATE -fobjc-arc)
+    endif()
+
+    if(MSYS OR MINGW)
+        target_link_options(juce_vst3_helper PRIVATE -municode)
+    endif()
+
+    set_target_properties(juce_vst3_helper PROPERTIES BUILD_WITH_INSTALL_RPATH ON)
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+    target_link_libraries(juce_vst3_helper PRIVATE Threads::Threads ${CMAKE_DL_LIBS} juce_recommended_config_flags)
 endfunction()
 
 # ==================================================================================================
@@ -968,12 +1014,32 @@ function(_juce_set_plugin_target_properties shared_code_target kind)
 
         _juce_create_windows_package(${shared_code_target} ${target_name} vst3 "" x86-win x86_64-win)
 
+        # Forward-slash separator is vital for moduleinfotool to work correctly on Windows!
         set(output_path "${products_folder}/${product_name}.vst3")
 
         if((CMAKE_SYSTEM_NAME STREQUAL "Linux") OR (CMAKE_SYSTEM_NAME MATCHES ".*BSD"))
             set_target_properties(${target_name} PROPERTIES
                 SUFFIX .so
                 LIBRARY_OUTPUT_DIRECTORY "${output_path}/Contents/${JUCE_TARGET_ARCHITECTURE}-linux")
+        endif()
+
+        # The VST3 helper tool requires <filesystem> which is broken before mingw version 9
+        if((NOT (MSYS OR MINGW)) OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 9)
+            # Add a target for the helper tool
+            _juce_add_vst3_manifest_helper_target()
+
+            get_target_property(target_version_string ${shared_code_target} JUCE_VERSION)
+
+            # Use the helper tool to write out the moduleinfo.json
+            add_custom_command(TARGET ${target_name} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E remove -f "${output_path}/Contents/moduleinfo.json"
+                COMMAND ${CMAKE_COMMAND} -E make_directory "${output_path}/Contents/Resources"
+                COMMAND juce_vst3_helper
+                    -create
+                    -version "${target_version_string}"
+                    -path "${output_path}"
+                    -output "${output_path}/Contents/Resources/moduleinfo.json"
+                VERBATIM)
         endif()
 
         _juce_set_copy_properties(${shared_code_target} ${target_name} "${output_path}" JUCE_VST3_COPY_DIR)
@@ -1173,6 +1239,7 @@ function(_juce_link_plugin_wrapper shared_code_target kind)
     endif()
 
     _juce_set_plugin_target_properties(${shared_code_target} ${kind})
+    _juce_add_resources_rc(${shared_code_target} ${target_name})
 endfunction()
 
 # ==================================================================================================
@@ -1843,7 +1910,7 @@ function(juce_add_console_app target)
 
     if(NOT JUCE_ARG__NO_RESOURCERC)
         _juce_write_configure_time_info(${target})
-        _juce_add_resources_rc(${target})
+        _juce_add_resources_rc(${target} ${target})
     endif()
 endfunction()
 
@@ -1860,14 +1927,13 @@ function(juce_add_gui_app target)
     set_target_properties(${target} PROPERTIES JUCE_TARGET_KIND_STRING "App")
     _juce_configure_bundle(${target} ${target})
     _juce_configure_app_bundle(${target} ${target})
-    _juce_add_resources_rc(${target})
+    _juce_add_resources_rc(${target} ${target})
 endfunction()
 
 function(juce_add_plugin target)
     add_library(${target} STATIC)
     set_target_properties(${target} PROPERTIES JUCE_IS_PLUGIN TRUE)
     _juce_initialise_target(${target} ${ARGN})
-    _juce_add_resources_rc(${target})
     _juce_configure_plugin_targets(${target})
 endfunction()
 

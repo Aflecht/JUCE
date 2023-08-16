@@ -32,7 +32,7 @@
 
   ID:                 juce_core
   vendor:             juce
-  version:            7.0.5
+  version:            7.0.6
   name:               JUCE core classes
   description:        The essential set of basic JUCE classes, as required by all the other JUCE modules. Includes text, container, memory, threading and i/o functionality.
   website:            http://www.juce.com/juce
@@ -219,6 +219,7 @@ namespace juce
     extern JUCE_API void JUCE_CALLTYPE logAssertion (const char* file, int line) noexcept;
 }
 
+#include "misc/juce_EnumHelpers.h"
 #include "memory/juce_Memory.h"
 #include "maths/juce_MathsFunctions.h"
 #include "memory/juce_ByteOrder.h"
@@ -314,12 +315,12 @@ JUCE_END_IGNORE_WARNINGS_MSVC
 #include "misc/juce_WindowsRegistry.h"
 #include "threads/juce_ChildProcess.h"
 #include "threads/juce_DynamicLibrary.h"
-#include "threads/juce_HighResolutionTimer.h"
 #include "threads/juce_InterProcessLock.h"
 #include "threads/juce_Process.h"
 #include "threads/juce_SpinLock.h"
 #include "threads/juce_WaitableEvent.h"
 #include "threads/juce_Thread.h"
+#include "threads/juce_HighResolutionTimer.h"
 #include "threads/juce_ThreadLocalValue.h"
 #include "threads/juce_ThreadPool.h"
 #include "threads/juce_TimeSliceThread.h"
@@ -348,16 +349,16 @@ JUCE_END_IGNORE_WARNINGS_MSVC
 #include "streams/juce_AndroidDocumentInputSource.h"
 
 #if JUCE_CORE_INCLUDE_OBJC_HELPERS && (JUCE_MAC || JUCE_IOS)
- #include "native/juce_mac_ObjCHelpers.h"
+ #include "native/juce_ObjCHelpers_mac.h"
 #endif
 
 #if JUCE_CORE_INCLUDE_COM_SMART_PTR && JUCE_WINDOWS
- #include "native/juce_win32_ComSmartPtr.h"
+ #include "native/juce_ComSmartPtr_windows.h"
 #endif
 
 #if JUCE_CORE_INCLUDE_JNI_HELPERS && JUCE_ANDROID
  #include <jni.h>
- #include "native/juce_android_JNIHelpers.h"
+ #include "native/juce_JNIHelpers_android.h"
 #endif
 
 #if JUCE_UNIT_TESTS

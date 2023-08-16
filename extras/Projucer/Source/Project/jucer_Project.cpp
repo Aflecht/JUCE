@@ -906,6 +906,25 @@ void Project::updateModuleWarnings()
     updateModuleNotFoundWarning (moduleNotFound);
 }
 
+void Project::updateExporterWarnings()
+{
+    const Identifier deprecatedExporters[] = { "CODEBLOCKS_WINDOWS", "CODEBLOCKS_LINUX" };
+
+    for (const auto exporter : getExporters())
+    {
+        for (const auto& name : deprecatedExporters)
+        {
+            if (exporter.getType() == name)
+            {
+                addProjectMessage (ProjectMessages::Ids::deprecatedExporter, {});
+                return;
+            }
+        }
+    }
+
+    removeProjectMessage (ProjectMessages::Ids::deprecatedExporter);
+}
+
 void Project::updateCppStandardWarning (bool showWarning)
 {
     if (showWarning)
@@ -1139,24 +1158,24 @@ void Project::valueTreePropertyChanged (ValueTree& tree, const Identifier& prope
     changed();
 }
 
-void Project::valueTreeChildAdded (ValueTree& parent, ValueTree& child)
+void Project::valueTreeChildAddedOrRemoved (ValueTree& parent, ValueTree& child)
 {
-    ignoreUnused (parent);
-
     if (child.getType() == Ids::MODULE)
         updateModuleWarnings();
+    else if (parent.getType() == Ids::EXPORTFORMATS)
+        updateExporterWarnings();
 
     changed();
 }
 
-void Project::valueTreeChildRemoved (ValueTree& parent, ValueTree& child, int index)
+void Project::valueTreeChildAdded (ValueTree& parent, ValueTree& child)
 {
-    ignoreUnused (parent, index);
+    valueTreeChildAddedOrRemoved (parent, child);
+}
 
-    if (child.getType() == Ids::MODULE)
-        updateModuleWarnings();
-
-    changed();
+void Project::valueTreeChildRemoved (ValueTree& parent, ValueTree& child, int)
+{
+    valueTreeChildAddedOrRemoved (parent, child);
 }
 
 void Project::valueTreeChildOrderChanged (ValueTree&, int, int)
@@ -1262,6 +1281,8 @@ bool Project::shouldBuildTargetType (build_tools::ProjectType::Target::Type targ
             return shouldBuildVST();
         case Target::VST3PlugIn:
             return shouldBuildVST3();
+        case Target::VST3Helper:
+            return shouldBuildVST3();
         case Target::AAXPlugIn:
             return shouldBuildAAX();
         case Target::AudioUnitPlugIn:
@@ -1273,7 +1294,7 @@ bool Project::shouldBuildTargetType (build_tools::ProjectType::Target::Type targ
         case Target::UnityPlugIn:
             return shouldBuildUnityPlugin();
         case Target::LV2PlugIn:
-        case Target::LV2TurtleProgram:
+        case Target::LV2Helper:
             return shouldBuildLV2();
         case Target::AggregateTarget:
         case Target::SharedCodeTarget:
@@ -1570,7 +1591,6 @@ void Project::createAudioPluginPropertyEditors (PropertyListBuilder& props)
 
         props.add (new TextPropertyComponent (pluginARACompatibleArchiveIDsValue, "Plugin ARA Compatible Document Archive IDs", 1024, true),
                    "List of compatible ARA Document Archive IDs - one per line");
-
     }
 }
 

@@ -104,7 +104,7 @@ JUCE_END_IGNORE_WARNINGS_GCC_LIKE
 
 using namespace juce;
 
-#include <juce_audio_plugin_client/detail/juce_WindowsHooks.h>
+#include <juce_gui_basics/native/juce_WindowsHooks_windows.h>
 #include <juce_audio_plugin_client/detail/juce_LinuxMessageThread.h>
 #include <juce_audio_plugin_client/detail/juce_VSTWindowUtilities.h>
 
@@ -552,7 +552,7 @@ public:
 
             if (detail::PluginUtilities::getHostType().isAbletonLive()
                  && hostCallback != nullptr
-                 && processor->getTailLengthSeconds() == std::numeric_limits<double>::infinity())
+                 && std::isinf (processor->getTailLengthSeconds()))
             {
                 AbletonLiveHostSpecific hostCmd;
 
@@ -645,7 +645,7 @@ public:
             }());
 
             const auto effectiveRate = info.getFrameRate().hasValue() ? info.getFrameRate()->getEffectiveRate() : 0.0;
-            info.setEditOriginTime (effectiveRate != 0.0 ? makeOptional (ti->smpteOffset / (80.0 * effectiveRate)) : nullopt);
+            info.setEditOriginTime (! approximatelyEqual (effectiveRate, 0.0) ? makeOptional (ti->smpteOffset / (80.0 * effectiveRate)) : nullopt);
         }
 
         info.setIsRecording ((ti->flags & Vst2::kVstTransportRecording) != 0);
@@ -1395,7 +1395,7 @@ private:
 
     void setValueAndNotifyIfChanged (AudioProcessorParameter& param, float newValue)
     {
-        if (param.getValue() == newValue)
+        if (approximatelyEqual (param.getValue(), newValue))
             return;
 
         inParameterChangedCallback = true;
@@ -1823,7 +1823,7 @@ private:
         if (args.index == Vst2::effGetParamDisplay)
             return handleCockosGetParameterText (args.value, args.ptr, args.opt);
 
-        if (auto callbackHandler = dynamic_cast<VSTCallbackHandler*> (processor.get()))
+        if (auto callbackHandler = processor->getVST2ClientExtensions())
             return callbackHandler->handleVstManufacturerSpecific (args.index, args.value, args.ptr, args.opt);
 
         return 0;
@@ -1882,7 +1882,7 @@ private:
         if (matches ("hasCockosExtensions"))
             return (int32) 0xbeef0000;
 
-        if (auto callbackHandler = dynamic_cast<VSTCallbackHandler*> (processor.get()))
+        if (auto callbackHandler = processor->getVST2ClientExtensions())
             return callbackHandler->handleVstPluginCanDo (args.index, args.value, args.ptr, args.opt);
 
         return 0;
@@ -1896,7 +1896,7 @@ private:
 
             auto tailSeconds = processor->getTailLengthSeconds();
 
-            if (tailSeconds == std::numeric_limits<double>::infinity())
+            if (std::isinf (tailSeconds))
                 result = std::numeric_limits<int32>::max();
             else
                 result = static_cast<int32> (tailSeconds * sampleRate);
@@ -2115,7 +2115,7 @@ namespace
                     auto* wrapper = new JuceVSTWrapper (audioMaster, std::move (processor));
                     auto* aEffect = wrapper->getAEffect();
 
-                    if (auto* callbackHandler = dynamic_cast<VSTCallbackHandler*> (processorPtr))
+                    if (auto* callbackHandler = processorPtr->getVST2ClientExtensions())
                     {
                         callbackHandler->handleVstHostCallbackAvailable ([audioMaster, aEffect] (int32 opcode, int32 index, pointer_sized_int value, void* ptr, float opt)
                         {

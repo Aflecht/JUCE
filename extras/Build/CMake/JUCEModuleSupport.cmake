@@ -73,9 +73,10 @@ endfunction()
 # ==================================================================================================
 
 function(_juce_add_standard_defs juce_target)
+    _juce_get_debug_config_genex(debug_config)
     target_compile_definitions(${juce_target} INTERFACE
         JUCE_GLOBAL_MODULE_SETTINGS_INCLUDED=1
-        $<IF:$<CONFIG:DEBUG>,DEBUG=1 _DEBUG=1,NDEBUG=1 _NDEBUG=1>
+        $<IF:${debug_config},DEBUG=1 _DEBUG=1,NDEBUG=1 _NDEBUG=1>
         $<$<PLATFORM_ID:Android>:JUCE_ANDROID=1>)
 endfunction()
 
@@ -155,24 +156,25 @@ function(_juce_get_metadata target key out_var)
 endfunction()
 
 # ==================================================================================================
-
 function(_juce_should_build_module_source filename output_var)
-    get_filename_component(trimmed_name "${filename}" NAME_WE)
+    get_filename_component(trimmed_filename "${filename}" NAME_WE)
+    string(TOLOWER "${trimmed_filename}" trimmed_filename_lowercase)
+
+    set(system_name_regex_for_suffix
+        "android\;Android"
+        "ios\;iOS"
+        "linux\;Linux|.*BSD"
+        "mac\;Darwin"
+        "osx\;Darwin"
+        "windows\;Windows")
 
     set(result TRUE)
 
-    set(pairs
-        "OSX\;Darwin"
-        "Windows\;Windows"
-        "Linux\;Linux"
-        "Android\;Android"
-        "iOS\;iOS")
-
-    foreach(pair IN LISTS pairs)
+    foreach(pair IN LISTS system_name_regex_for_suffix)
         list(GET pair 0 suffix)
-        list(GET pair 1 system_name)
+        list(GET pair 1 regex)
 
-        if((trimmed_name MATCHES "_${suffix}$") AND NOT (CMAKE_SYSTEM_NAME STREQUAL "${system_name}"))
+        if((trimmed_filename_lowercase MATCHES "_${suffix}$") AND NOT (CMAKE_SYSTEM_NAME MATCHES "${regex}"))
             set(result FALSE)
         endif()
     endforeach()
@@ -443,7 +445,10 @@ function(juce_add_module module_path)
     _juce_module_sources("${module_path}" "${base_path}" globbed_sources headers)
 
     if(${module_name} STREQUAL "juce_audio_plugin_client")
-        list(REMOVE_ITEM headers "${module_path}/LV2/juce_LV2TurtleDumpProgram.cpp")
+        list(REMOVE_ITEM headers
+            "${module_path}/LV2/juce_LV2ManifestHelper.cpp"
+            "${module_path}/VST3/juce_VST3ManifestHelper.mm"
+            "${module_path}/VST3/juce_VST3ManifestHelper.cpp")
 
         _juce_get_platform_plugin_kinds(plugin_kinds)
 

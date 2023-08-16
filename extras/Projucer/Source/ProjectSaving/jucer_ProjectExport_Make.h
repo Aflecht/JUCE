@@ -129,14 +129,14 @@ public:
     {
     public:
         MakefileTarget (build_tools::ProjectType::Target::Type targetType, const MakefileProjectExporter& exporter)
-            : build_tools::ProjectType::Target (targetType), owner (exporter)
+            : Target (targetType), owner (exporter)
         {}
 
         StringArray getCompilerFlags() const
         {
             StringArray result;
 
-            if (getTargetFileType() == sharedLibraryOrDLL || getTargetFileType() == pluginBundle)
+            if (getTargetFileType() == sharedLibraryOrDLL || getTargetFileType() == pluginBundle || type == SharedCodeTarget)
             {
                 result.add ("-fPIC");
                 result.add ("-fvisibility=hidden");
@@ -221,9 +221,13 @@ public:
                 s.add ("JUCE_LV2DIR := " + escapeQuotesAndSpaces (targetName) + ".lv2");
                 targetName = "$(JUCE_LV2DIR)/" + targetName + ".so";
             }
-            else if (type == LV2TurtleProgram)
+            else if (type == LV2Helper)
             {
                 targetName = Project::getLV2FileWriterName();
+            }
+            else if (type == VST3Helper)
+            {
+                targetName = Project::getVST3FileWriterName();
             }
 
             s.add ("JUCE_TARGET_" + getTargetVarName() + String (" := ") + escapeQuotesAndSpaces (targetName));
@@ -331,8 +335,11 @@ public:
 
         String getPhonyName() const
         {
-            if (type == LV2TurtleProgram)
+            if (type == LV2Helper)
                 return "LV2_MANIFEST_HELPER";
+
+            if (type == VST3Helper)
+                return "VST3_MANIFEST_HELPER";
 
             return String (getName()).upToFirstOccurrenceOf (" ", false, false);
         }
@@ -349,6 +356,8 @@ public:
 
             if (type == LV2PlugIn)
                 out << " $(JUCE_OUTDIR)/$(JUCE_TARGET_LV2_MANIFEST_HELPER)";
+            else if (type == VST3PlugIn)
+                out << " $(JUCE_OUTDIR)/$(JUCE_TARGET_VST3_MANIFEST_HELPER)";
 
             out << newLine;
 
@@ -399,7 +408,14 @@ public:
 
             if (type == VST3PlugIn)
             {
-                out << "\t-$(V_AT)[ ! \"$(JUCE_VST3DESTDIR)\" ] || (mkdir -p $(JUCE_VST3DESTDIR) && cp -R $(JUCE_COPYCMD_VST3))" << newLine;
+                out << "\t-$(V_AT)mkdir -p $(JUCE_OUTDIR)/$(JUCE_VST3DIR)/Contents/Resources" << newLine
+                    << "\t-$(V_AT)rm -f $(JUCE_OUTDIR)/$(JUCE_VST3DIR)/Contents/moduleinfo.json" << newLine
+                    << "\t$(V_AT) $(JUCE_OUTDIR)/$(JUCE_TARGET_VST3_MANIFEST_HELPER) "
+                       "-create "
+                       "-version " << owner.project.getVersionString().quoted() << " "
+                       "-path $(JUCE_OUTDIR)/$(JUCE_VST3DIR) "
+                       "-output $(JUCE_OUTDIR)/$(JUCE_VST3DIR)/Contents/Resources/moduleinfo.json" << newLine
+                    << "\t-$(V_AT)[ ! \"$(JUCE_VST3DESTDIR)\" ] || (mkdir -p $(JUCE_VST3DESTDIR) && cp -R $(JUCE_COPYCMD_VST3))" << newLine;
             }
             else if (type == VSTPlugIn)
             {
@@ -486,11 +502,12 @@ public:
             case Target::AggregateTarget:
             case Target::VSTPlugIn:
             case Target::VST3PlugIn:
+            case Target::VST3Helper:
             case Target::StandalonePlugIn:
             case Target::DynamicLibrary:
             case Target::UnityPlugIn:
             case Target::LV2PlugIn:
-            case Target::LV2TurtleProgram:
+            case Target::LV2Helper:
                 return true;
             case Target::AAXPlugIn:
             case Target::AudioUnitPlugIn:
@@ -1172,11 +1189,18 @@ private:
                 targetFiles.emplace_back (linuxSubprocessHelperProperties.getLinuxSubprocessHelperBinaryDataSource(), "");
             }
 
-            if (targetType == MakefileTarget::LV2TurtleProgram)
+            if (targetType == MakefileTarget::LV2Helper)
             {
-                targetFiles.emplace_back (getLV2TurtleDumpProgramSource().rebased (projectFolder,
-                                                                                   getTargetFolder(),
-                                                                                   build_tools::RelativePath::buildTargetFolder),
+                targetFiles.emplace_back (getLV2HelperProgramSource().rebased (projectFolder,
+                                                                               getTargetFolder(),
+                                                                               build_tools::RelativePath::buildTargetFolder),
+                                          String{});
+            }
+            else if (targetType == MakefileTarget::VST3Helper)
+            {
+                targetFiles.emplace_back (getVST3HelperProgramSource().rebased (projectFolder,
+                                                                                getTargetFolder(),
+                                                                                build_tools::RelativePath::buildTargetFolder),
                                           String{});
             }
 

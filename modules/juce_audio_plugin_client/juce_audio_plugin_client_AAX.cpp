@@ -30,21 +30,24 @@
 
 #include <juce_audio_plugin_client/detail/juce_IncludeSystemHeaders.h>
 #include <juce_audio_plugin_client/detail/juce_PluginUtilities.h>
-#include <juce_audio_plugin_client/detail/juce_WindowsHooks.h>
+#include <juce_gui_basics/native/juce_WindowsHooks_windows.h>
 
 #include <juce_audio_processors/format_types/juce_LegacyAudioParameter.cpp>
 
 JUCE_BEGIN_IGNORE_WARNINGS_MSVC (4127 4512 4996)
-JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wnon-virtual-dtor",
-                                     "-Wsign-conversion",
+JUCE_BEGIN_IGNORE_WARNINGS_GCC_LIKE ("-Wdeprecated-declarations",
                                      "-Wextra-semi",
-                                     "-Wshift-sign-overflow",
-                                     "-Wpragma-pack",
-                                     "-Wzero-as-null-pointer-constant",
-                                     "-Winconsistent-missing-destructor-override",
+                                     "-Wfloat-equal",
                                      "-Wfour-char-constants",
+                                     "-Winconsistent-missing-destructor-override",
+                                     "-Wnon-virtual-dtor",
+                                     "-Wpragma-pack",
+                                     "-Wshift-sign-overflow",
+                                     "-Wsign-conversion",
                                      "-Wtautological-overlap-compare",
-                                     "-Wdeprecated-declarations")
+                                     "-Wzero-as-null-pointer-constant",
+                                     "-Wdeprecated-copy-with-user-provided-dtor",
+                                     "-Wdeprecated")
 
 #include <AAX_Version.h>
 
@@ -1004,7 +1007,7 @@ namespace AAXClasses
             {
                 auto newValue = static_cast<float> (value);
 
-                if (newValue != param->getValue())
+                if (! approximatelyEqual (newValue, param->getValue()))
                 {
                     param->setValue (newValue);
 
@@ -2479,11 +2482,13 @@ namespace AAXClasses
         properties->AddProperty (AAX_eProperty_InputStemFormat,     static_cast<AAX_CPropertyValue> (aaxInputFormat));
         properties->AddProperty (AAX_eProperty_OutputStemFormat,    static_cast<AAX_CPropertyValue> (aaxOutputFormat));
 
+        const auto& extensions = processor.getAAXClientExtensions();
+
         // This value needs to match the RTAS wrapper's Type ID, so that
         // the host knows that the RTAS/AAX plugins are equivalent.
-        const int32 pluginID = processor.getAAXPluginIDForMainBusConfig (fullLayout.getMainInputChannelSet(),
-                                                                         fullLayout.getMainOutputChannelSet(),
-                                                                         false);
+        const auto pluginID = extensions.getPluginIDForMainBusConfig (fullLayout.getMainInputChannelSet(),
+                                                                      fullLayout.getMainOutputChannelSet(),
+                                                                      false);
 
         // The plugin id generated from your AudioProcessor's getAAXPluginIDForMainBusConfig callback
         // it not unique. Please fix your implementation!
@@ -2494,9 +2499,9 @@ namespace AAXClasses
 
        #if ! JucePlugin_AAXDisableAudioSuite
         properties->AddProperty (AAX_eProperty_PlugInID_AudioSuite,
-                                 processor.getAAXPluginIDForMainBusConfig (fullLayout.getMainInputChannelSet(),
-                                                                           fullLayout.getMainOutputChannelSet(),
-                                                                           true));
+                                 extensions.getPluginIDForMainBusConfig (fullLayout.getMainInputChannelSet(),
+                                                                         fullLayout.getMainOutputChannelSet(),
+                                                                         true));
        #endif
 
        #if JucePlugin_AAXDisableMultiMono
@@ -2600,11 +2605,13 @@ namespace AAXClasses
 
         const int numMeters = addAAXMeters (*plugin, descriptor);
 
-       #ifdef JucePlugin_AAXPageTableFile
-        // optional page table setting - define this macro in your project if you want
-        // to set this value - see Avid documentation for details about its format.
-        descriptor.AddResourceInfo (AAX_eResourceType_PageTable, JucePlugin_AAXPageTableFile);
-       #endif
+        const auto& extensions = plugin->getAAXClientExtensions();
+
+        if (const auto searchPath = extensions.getPageFileSearchPath().getFullPathName(); searchPath.isNotEmpty())
+            descriptor.AddResourceInfo (AAX_eResourceType_PageTableDir, searchPath.toRawUTF8());
+
+       if (const auto filename = extensions.getPageFileName(); filename.isNotEmpty())
+            descriptor.AddResourceInfo (AAX_eResourceType_PageTable, filename.toRawUTF8());
 
         check (descriptor.AddProcPtr ((void*) JuceAAX_GUI::Create,        kAAX_ProcPtrID_Create_EffectGUI));
         check (descriptor.AddProcPtr ((void*) JuceAAX_Processor::Create,  kAAX_ProcPtrID_Create_EffectParameters));
