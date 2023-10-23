@@ -29,8 +29,8 @@ namespace juce
 {
 
 //==============================================================================
-class LinuxComponentPeer  : public ComponentPeer,
-                            private XWindowSystemUtilities::XSettings::Listener
+class LinuxComponentPeer final : public ComponentPeer,
+                                 private XWindowSystemUtilities::XSettings::Listener
 {
 public:
     LinuxComponentPeer (Component& comp, int windowStyleFlags, ::Window parentToAddTo)
@@ -511,7 +511,7 @@ private:
         JUCE_DECLARE_NON_COPYABLE (LinuxRepaintManager)
     };
 
-    class LinuxVBlankManager  : public Timer
+    class LinuxVBlankManager final : public Timer
     {
     public:
         explicit LinuxVBlankManager (std::function<void()> cb)  : callback (std::move (cb))
