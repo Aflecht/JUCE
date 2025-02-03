@@ -1,33 +1,24 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE framework.
-   Copyright (c) Raw Material Software Limited
+   This file is part of the JUCE library.
+   Copyright (c) 2022 - Raw Material Software Limited
 
-   JUCE is an open source framework subject to commercial or open source
+   JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By downloading, installing, or using the JUCE framework, or combining the
-   JUCE framework with any other source code, object code, content or any other
-   copyrightable work, you agree to the terms of the JUCE End User Licence
-   Agreement, and all incorporated terms including the JUCE Privacy Policy and
-   the JUCE Website Terms of Service, as applicable, which will bind you. If you
-   do not agree to the terms of these agreements, we will not license the JUCE
-   framework to you, and you must discontinue the installation or download
-   process and cease use of the JUCE framework.
+   By using JUCE, you agree to the terms of both the JUCE 7 End-User License
+   Agreement and JUCE Privacy Policy.
 
-   JUCE End User Licence Agreement: https://juce.com/legal/juce-8-licence/
-   JUCE Privacy Policy: https://juce.com/juce-privacy-policy
-   JUCE Website Terms of Service: https://juce.com/juce-website-terms-of-service/
+   End User License Agreement: www.juce.com/juce-7-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
-   Or:
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   You may also use this code under the terms of the AGPLv3:
-   https://www.gnu.org/licenses/agpl-3.0.en.html
-
-   THE JUCE FRAMEWORK IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL
-   WARRANTIES, WHETHER EXPRESSED OR IMPLIED, INCLUDING WARRANTY OF
-   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, ARE DISCLAIMED.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
@@ -328,11 +319,9 @@ public:
 
     RenderStatus renderFrame (MessageManager::Lock& mmLock)
     {
-        ScopedContextActivator contextActivator;
-
-        if (! isFlagSet (state, StateFlags::initialised))
-        {
-            switch (initialiseOnThread (contextActivator))
+       if (! isFlagSet (state, StateFlags::initialised))
+       {
+            switch (initialiseOnThread())
             {
                 case InitResult::fatal:
                 case InitResult::retry: return RenderStatus::noWork;
@@ -348,6 +337,7 @@ public:
        #endif
 
         std::optional<MessageManager::Lock::ScopedTryLockType> scopedLock;
+        ScopedContextActivator contextActivator;
 
         const auto stateToUse = state.fetch_and (StateFlags::persistent);
 
@@ -618,14 +608,14 @@ public:
     }
 
     //==============================================================================
-    InitResult initialiseOnThread (ScopedContextActivator& activator)
+    InitResult initialiseOnThread()
     {
         // On android, this can get called twice, so drop any previous state.
         associatedObjectNames.clear();
         associatedObjects.clear();
         cachedImageFrameBuffer.release();
 
-        activator.activate (context);
+        context.makeActive();
 
         if (const auto nativeResult = nativeContext->initialiseOnRenderThread (context); nativeResult != InitResult::success)
             return nativeResult;
@@ -638,7 +628,7 @@ public:
 
         gl::loadFunctions();
 
-       #if JUCE_DEBUG && ! JUCE_DISABLE_ASSERTIONS
+       #if JUCE_DEBUG
         if (getOpenGLVersion() >= Version { 4, 3 } && glDebugMessageCallback != nullptr)
         {
             glEnable (GL_DEBUG_OUTPUT);
@@ -899,7 +889,7 @@ public:
         {
             connection.emplace (sharedDisplayLinks->registerFactory ([this] (CGDirectDisplayID display)
             {
-                return [this, display] (double)
+                return [this, display]
                 {
                     if (display == lastDisplay)
                         triggerRepaint();
@@ -1199,10 +1189,7 @@ private:
         auto& comp = *getComponent();
 
        #if JUCE_MAC
-        #if ! JUCE_MAC_API_VERSION_MIN_REQUIRED_AT_LEAST (15, 0)
-        // According to a warning triggered on macOS 15 and above this doesn't do anything!
         [[(NSView*) comp.getWindowHandle() window] disableScreenUpdatesUntilFlush];
-        #endif
        #endif
 
         if (auto* oldCachedImage = CachedImage::get (comp))
@@ -1227,8 +1214,6 @@ private:
         if (auto* cachedImage = CachedImage::get (*getComponent()))
             cachedImage->checkViewportBounds();
     }
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (Attachment)
 };
 
 //==============================================================================
@@ -1354,16 +1339,16 @@ OpenGLContext* OpenGLContext::getContextAttachedTo (Component& c) noexcept
     return nullptr;
 }
 
-thread_local OpenGLContext* currentThreadActiveContext = nullptr;
+static ThreadLocalValue<OpenGLContext*> currentThreadActiveContext;
 
 OpenGLContext* OpenGLContext::getCurrentContext()
 {
-    return currentThreadActiveContext;
+    return currentThreadActiveContext.get();
 }
 
 bool OpenGLContext::makeActive() const noexcept
 {
-    auto& current = currentThreadActiveContext;
+    auto& current = currentThreadActiveContext.get();
 
     if (nativeContext != nullptr && nativeContext->makeActive())
     {
@@ -1383,7 +1368,7 @@ bool OpenGLContext::isActive() const noexcept
 void OpenGLContext::deactivateCurrentContext()
 {
     NativeContext::deactivateCurrentContext();
-    currentThreadActiveContext = nullptr;
+    currentThreadActiveContext.get() = nullptr;
 }
 
 void OpenGLContext::triggerRepaint()
@@ -1525,22 +1510,14 @@ struct DepthTestDisabler
 void OpenGLContext::copyTexture (const Rectangle<int>& targetClipArea,
                                  const Rectangle<int>& anchorPosAndTextureSize,
                                  const int contextWidth, const int contextHeight,
-                                 bool flippedVertically,
-                                 bool blend)
+                                 bool flippedVertically)
 {
     if (contextWidth <= 0 || contextHeight <= 0)
         return;
 
     JUCE_CHECK_OPENGL_ERROR
-    if (blend)
-    {
-        glBlendFunc (GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-        glEnable (GL_BLEND);
-    }
-    else
-    {
-        glDisable (GL_BLEND);
-    }
+    glBlendFunc (GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable (GL_BLEND);
 
     DepthTestDisabler depthDisabler;
 

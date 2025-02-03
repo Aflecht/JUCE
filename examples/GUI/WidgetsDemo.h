@@ -1,22 +1,18 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE framework examples.
-   Copyright (c) Raw Material Software Limited
+   This file is part of the JUCE examples.
+   Copyright (c) 2022 - Raw Material Software Limited
 
    The code included in this file is provided under the terms of the ISC license
    http://www.isc.org/downloads/software-support-policy/isc-license. Permission
-   to use, copy, modify, and/or distribute this software for any purpose with or
+   To use, copy, modify, and/or distribute this software for any purpose with or
    without fee is hereby granted provided that the above copyright notice and
    this permission notice appear in all copies.
 
-   THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
-   REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
-   AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
-   INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
-   LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
-   OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
-   PERFORMANCE OF THIS SOFTWARE.
+   THE SOFTWARE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES,
+   WHETHER EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR
+   PURPOSE, ARE DISCLAIMED.
 
   ==============================================================================
 */
@@ -1117,7 +1113,7 @@ public:
             {
                 auto text = rowElement->getStringAttribute (getAttributeNameForColumnId (columnId));
 
-                widest = jmax (widest, GlyphArrangement::getStringWidthInt (font, text));
+                widest = jmax (widest, font.getStringWidth (text));
             }
         }
 
@@ -1156,7 +1152,7 @@ public:
 
 private:
     TableListBox table;     // the table component itself
-    Font font { FontOptions { 14.0f } };
+    Font font  { 14.0f };
 
     std::unique_ptr<XmlElement> demoData;  // This is the XML document loaded from the embedded file "demo table data.xml"
     XmlElement* columnList = nullptr;     // A pointer to the sub-node of demoData that contains the list of columns
@@ -1515,12 +1511,12 @@ private:
 //==============================================================================
 struct DemoTabbedComponent final : public TabbedComponent
 {
-    DemoTabbedComponent (bool isRunningComponentTransformsDemo)
+    DemoTabbedComponent (bool isRunningComponenTransformsDemo)
         : TabbedComponent (TabbedButtonBar::TabsAtTop)
     {
         auto colour = findColour (ResizableWindow::backgroundColourId);
 
-        addTab ("Buttons",     colour, new ButtonsPage (isRunningComponentTransformsDemo), true);
+        addTab ("Buttons",     colour, new ButtonsPage (isRunningComponenTransformsDemo), true);
         addTab ("Sliders",     colour, new SlidersPage(),                                 true);
         addTab ("Toolbars",    colour, new ToolbarDemoComp(),                             true);
         addTab ("Misc",        colour, new MiscPage(),                                    true);
@@ -1528,7 +1524,7 @@ struct DemoTabbedComponent final : public TabbedComponent
         addTab ("Tables",      colour, new TableDemoComponent(),                          true);
         addTab ("Drag & Drop", colour, new DragAndDropDemo(),                             true);
 
-        getTabbedButtonBar().getTabButton (5)->setExtraComponent (new CustomTabButton (isRunningComponentTransformsDemo),
+        getTabbedButtonBar().getTabButton (5)->setExtraComponent (new CustomTabButton (isRunningComponenTransformsDemo),
                                                                   TabBarButton::afterText);
     }
 
@@ -1537,8 +1533,8 @@ struct DemoTabbedComponent final : public TabbedComponent
     class CustomTabButton final : public Component
     {
     public:
-        CustomTabButton (bool isRunningComponentTransformsDemo)
-            : runningComponentTransformsDemo (isRunningComponentTransformsDemo)
+        CustomTabButton (bool isRunningComponenTransformsDemo)
+            : runningComponenTransformsDemo (isRunningComponenTransformsDemo)
         {
             setSize (20, 20);
         }
@@ -1560,10 +1556,10 @@ struct DemoTabbedComponent final : public TabbedComponent
                                "You can use these to implement things like close-buttons "
                                "or status displays for your tabs.",
                                bubbleMessage,
-                               runningComponentTransformsDemo);
+                               runningComponenTransformsDemo);
         }
     private:
-        bool runningComponentTransformsDemo;
+        bool runningComponenTransformsDemo;
         std::unique_ptr<BubbleMessageComponent> bubbleMessage;
     };
 

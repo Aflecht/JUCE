@@ -1,33 +1,21 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE framework.
-   Copyright (c) Raw Material Software Limited
+   This file is part of the JUCE library.
+   Copyright (c) 2022 - Raw Material Software Limited
 
-   JUCE is an open source framework subject to commercial or open source
+   JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By downloading, installing, or using the JUCE framework, or combining the
-   JUCE framework with any other source code, object code, content or any other
-   copyrightable work, you agree to the terms of the JUCE End User Licence
-   Agreement, and all incorporated terms including the JUCE Privacy Policy and
-   the JUCE Website Terms of Service, as applicable, which will bind you. If you
-   do not agree to the terms of these agreements, we will not license the JUCE
-   framework to you, and you must discontinue the installation or download
-   process and cease use of the JUCE framework.
+   The code included in this file is provided under the terms of the ISC license
+   http://www.isc.org/downloads/software-support-policy/isc-license. Permission
+   To use, copy, modify, and/or distribute this software for any purpose with or
+   without fee is hereby granted provided that the above copyright notice and
+   this permission notice appear in all copies.
 
-   JUCE End User Licence Agreement: https://juce.com/legal/juce-8-licence/
-   JUCE Privacy Policy: https://juce.com/juce-privacy-policy
-   JUCE Website Terms of Service: https://juce.com/juce-website-terms-of-service/
-
-   Or:
-
-   You may also use this code under the terms of the AGPLv3:
-   https://www.gnu.org/licenses/agpl-3.0.en.html
-
-   THE JUCE FRAMEWORK IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL
-   WARRANTIES, WHETHER EXPRESSED OR IMPLIED, INCLUDING WARRANTY OF
-   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, ARE DISCLAIMED.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
@@ -118,7 +106,7 @@ struct IgnoreUnused
 template <typename T>
 static auto getDataPtrAndSize (T& t)
 {
-    static_assert (std::is_standard_layout_v<T>);
+    static_assert (std::is_pod_v<T>);
     return std::make_tuple (&t, (UInt32) sizeof (T));
 }
 
@@ -1051,7 +1039,7 @@ public:
 
     CoreAudioIODevice& owner;
     int bitDepth = 32;
-    std::atomic<int> xruns = 0;
+    int xruns = 0;
     Array<double> sampleRates;
     Array<int> bufferSizes;
     AudioDeviceID deviceID;
@@ -1159,7 +1147,7 @@ private:
             return x.mSelector == kAudioDeviceProcessorOverload;
         });
 
-        intern.xruns += (int) xruns;
+        intern.xruns += xruns;
 
         const auto detailsChanged = std::any_of (pa, pa + numAddresses, [] (const AudioObjectPropertyAddress& x)
         {
@@ -1325,8 +1313,6 @@ public:
 
     void start (AudioIODeviceCallback* callback) override
     {
-        const ScopedLock sl (startStopLock);
-
         if (internal->start (callback))
             pendingCallback = nullptr;
     }
@@ -1334,14 +1320,12 @@ public:
     void stop() override
     {
         stopAndGetLastCallback();
-
-        const ScopedLock sl (startStopLock);
         pendingCallback = nullptr;
     }
 
     void stopWithPendingCallback()
     {
-        const ScopedLock sl (startStopLock);
+        const ScopedLock sl (closeLock);
 
         if (pendingCallback == nullptr)
             pendingCallback = stopAndGetLastCallback();
@@ -1403,7 +1387,7 @@ private:
     AudioIODeviceCallback* pendingCallback = nullptr;
     AsyncRestarter* restarter = nullptr;
     BigInteger inputChannelsRequested, outputChannelsRequested;
-    CriticalSection startStopLock;
+    CriticalSection closeLock;
 
     AudioIODeviceCallback* stopAndGetLastCallback() const
     {
@@ -1428,7 +1412,6 @@ private:
               getCurrentSampleRate(),
               getCurrentBufferSizeSamples());
 
-        const ScopedLock sl { startStopLock };
         start (pendingCallback);
     }
 

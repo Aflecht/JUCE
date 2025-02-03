@@ -1,33 +1,24 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE framework.
-   Copyright (c) Raw Material Software Limited
+   This file is part of the JUCE library.
+   Copyright (c) 2022 - Raw Material Software Limited
 
-   JUCE is an open source framework subject to commercial or open source
+   JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By downloading, installing, or using the JUCE framework, or combining the
-   JUCE framework with any other source code, object code, content or any other
-   copyrightable work, you agree to the terms of the JUCE End User Licence
-   Agreement, and all incorporated terms including the JUCE Privacy Policy and
-   the JUCE Website Terms of Service, as applicable, which will bind you. If you
-   do not agree to the terms of these agreements, we will not license the JUCE
-   framework to you, and you must discontinue the installation or download
-   process and cease use of the JUCE framework.
+   By using JUCE, you agree to the terms of both the JUCE 7 End-User License
+   Agreement and JUCE Privacy Policy.
 
-   JUCE End User Licence Agreement: https://juce.com/legal/juce-8-licence/
-   JUCE Privacy Policy: https://juce.com/juce-privacy-policy
-   JUCE Website Terms of Service: https://juce.com/juce-website-terms-of-service/
+   End User License Agreement: www.juce.com/juce-7-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
-   Or:
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   You may also use this code under the terms of the AGPLv3:
-   https://www.gnu.org/licenses/agpl-3.0.en.html
-
-   THE JUCE FRAMEWORK IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL
-   WARRANTIES, WHETHER EXPRESSED OR IMPLIED, INCLUDING WARRANTY OF
-   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, ARE DISCLAIMED.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
@@ -104,7 +95,7 @@ public:
                     {
                         lastAtom.atomText += first.atomText;
                         lastAtom.numChars = (uint16) (lastAtom.numChars + first.numChars);
-                        lastAtom.width = GlyphArrangement::getStringWidth (font, lastAtom.getText (passwordChar));
+                        lastAtom.width = font.getStringWidthFloat (lastAtom.getText (passwordChar));
                         ++i;
                     }
                 }
@@ -143,13 +134,13 @@ public:
             {
                 TextAtom secondAtom;
                 secondAtom.atomText = atom.atomText.substring (indexToBreakAt - index);
-                secondAtom.width = GlyphArrangement::getStringWidth (font, secondAtom.getText (passwordChar));
+                secondAtom.width = font.getStringWidthFloat (secondAtom.getText (passwordChar));
                 secondAtom.numChars = (uint16) secondAtom.atomText.length();
 
                 section2->atoms.add (secondAtom);
 
                 atom.atomText = atom.atomText.substring (0, indexToBreakAt - index);
-                atom.width = GlyphArrangement::getStringWidth (font, atom.getText (passwordChar));
+                atom.width = font.getStringWidthFloat (atom.getText (passwordChar));
                 atom.numChars = (uint16) (indexToBreakAt - index);
 
                 for (int j = i + 1; j < atoms.size(); ++j)
@@ -212,7 +203,7 @@ public:
             passwordChar = passwordCharToUse;
 
             for (auto& atom : atoms)
-                atom.width = GlyphArrangement::getStringWidth (newFont, atom.getText (passwordChar));
+                atom.width = newFont.getStringWidthFloat (atom.getText (passwordChar));
         }
     }
 
@@ -272,7 +263,7 @@ private:
 
             TextAtom atom;
             atom.atomText = String (start, numChars);
-            atom.width = (atom.isNewLine() ? 0.0f : GlyphArrangement::getStringWidth (font, atom.getText (passwordChar)));
+            atom.width = (atom.isNewLine() ? 0.0f : font.getStringWidthFloat (atom.getText (passwordChar)));
             atom.numChars = (uint16) numChars;
             atoms.add (atom);
         }
@@ -883,7 +874,7 @@ private:
         return createIgnoredAccessibilityHandler (*this);
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (TextHolderComponent)
+    JUCE_DECLARE_NON_COPYABLE (TextHolderComponent)
 };
 
 //==============================================================================

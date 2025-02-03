@@ -1,33 +1,24 @@
 /*
   ==============================================================================
 
-   This file is part of the JUCE framework.
-   Copyright (c) Raw Material Software Limited
+   This file is part of the JUCE library.
+   Copyright (c) 2022 - Raw Material Software Limited
 
-   JUCE is an open source framework subject to commercial or open source
+   JUCE is an open source library subject to commercial or open-source
    licensing.
 
-   By downloading, installing, or using the JUCE framework, or combining the
-   JUCE framework with any other source code, object code, content or any other
-   copyrightable work, you agree to the terms of the JUCE End User Licence
-   Agreement, and all incorporated terms including the JUCE Privacy Policy and
-   the JUCE Website Terms of Service, as applicable, which will bind you. If you
-   do not agree to the terms of these agreements, we will not license the JUCE
-   framework to you, and you must discontinue the installation or download
-   process and cease use of the JUCE framework.
+   By using JUCE, you agree to the terms of both the JUCE 7 End-User License
+   Agreement and JUCE Privacy Policy.
 
-   JUCE End User Licence Agreement: https://juce.com/legal/juce-8-licence/
-   JUCE Privacy Policy: https://juce.com/juce-privacy-policy
-   JUCE Website Terms of Service: https://juce.com/juce-website-terms-of-service/
+   End User License Agreement: www.juce.com/juce-7-licence
+   Privacy Policy: www.juce.com/juce-privacy-policy
 
-   Or:
+   Or: You may also use this code under the terms of the GPL v3 (see
+   www.gnu.org/licenses).
 
-   You may also use this code under the terms of the AGPLv3:
-   https://www.gnu.org/licenses/agpl-3.0.en.html
-
-   THE JUCE FRAMEWORK IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL
-   WARRANTIES, WHETHER EXPRESSED OR IMPLIED, INCLUDING WARRANTY OF
-   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE, ARE DISCLAIMED.
+   JUCE IS PROVIDED "AS IS" WITHOUT ANY WARRANTY, AND ALL WARRANTIES, WHETHER
+   EXPRESSED OR IMPLIED, INCLUDING MERCHANTABILITY AND FITNESS FOR PURPOSE, ARE
+   DISCLAIMED.
 
   ==============================================================================
 */
@@ -491,6 +482,7 @@ public:
 
     bool isXcode() const override                           { return false; }
     bool isVisualStudio() const override                    { return false; }
+    bool isCodeBlocks() const override                      { return false; }
     bool isMakefile() const override                        { return true; }
     bool isAndroidStudio() const override                   { return false; }
 
@@ -624,56 +616,33 @@ private:
         return result;
     }
 
-    std::vector<PackageDependency> getExtraPkgConfigPackages() const
+    StringArray getExtraPkgConfigPackages() const
     {
         auto packages = StringArray::fromTokens (extraPkgConfigValue.get().toString(), " ", "\"'");
         packages.removeEmptyStrings();
 
-        return makePackageDependencies (packages);
+        return packages;
     }
 
-    std::vector<PackageDependency> getCompilePackages() const
+    StringArray getCompilePackages() const
     {
         auto packages = getLinuxPackages (PackageDependencyType::compile);
-        const auto extra = getExtraPkgConfigPackages();
-        packages.insert (packages.end(), extra.begin(), extra.end());
+        packages.addArray (getExtraPkgConfigPackages());
 
         return packages;
     }
 
-    std::vector<PackageDependency> getLinkPackages() const
+    StringArray getLinkPackages() const
     {
         auto packages = getLinuxPackages (PackageDependencyType::link);
-        const auto extra = getExtraPkgConfigPackages();
-        packages.insert (packages.end(), extra.begin(), extra.end());
-
-        return packages;
-    }
-
-    static StringArray getPackagesCommand (const std::vector<PackageDependency>& dependencies)
-    {
-        StringArray packages;
-
-        for (const auto& d : dependencies)
-        {
-            if (d.fallback.has_value())
-            {
-                packages.add (String { "$(shell ($(PKG_CONFIG) --exists %VALUE% && echo %VALUE%) || echo %OR_ELSE%)" }
-                                  .replace ("%VALUE%", d.dependency)
-                                  .replace ("%OR_ELSE%", *d.fallback));
-            }
-            else
-            {
-                packages.add (d.dependency);
-            }
-        }
+        packages.addArray (getExtraPkgConfigPackages());
 
         return packages;
     }
 
     String getPreprocessorPkgConfigFlags() const
     {
-        auto compilePackages = getPackagesCommand (getCompilePackages());
+        auto compilePackages = getCompilePackages();
 
         if (compilePackages.size() > 0)
             return "$(shell $(PKG_CONFIG) --cflags " + compilePackages.joinIntoString (" ") + ")";
@@ -683,7 +652,7 @@ private:
 
     String getLinkerPkgConfigFlags() const
     {
-        auto linkPackages = getPackagesCommand (getLinkPackages());
+        auto linkPackages = getLinkPackages();
 
         if (linkPackages.size() > 0)
             return "$(shell $(PKG_CONFIG) --libs " + linkPackages.joinIntoString (" ") + ")";
@@ -1263,7 +1232,7 @@ private:
 
         out << getPhonyTargetLine() << newLine << newLine;
 
-        writeTargetLines (out, getPackagesCommand (getLinkPackages()));
+        writeTargetLines (out, getLinkPackages());
 
         for (auto target : targets)
             target->addFiles (out, getFilesForTarget (filesToCompile, target, project));
