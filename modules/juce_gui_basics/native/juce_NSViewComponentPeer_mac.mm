@@ -37,6 +37,8 @@
 - (float)deviceDeltaY;
 @end
 
+int GLOBAL_keycode_of_last_event = 0;       // Added by DECYNE4
+
 //==============================================================================
 namespace juce
 {
@@ -871,6 +873,8 @@ public:
 
     bool handleKeyEvent (NSEvent* ev, bool isKeyDown)
     {
+        GLOBAL_keycode_of_last_event = [ev keyCode];        // Added by DECYNE4
+
         auto unicode = nsStringToJuce ([ev characters]);
         auto keyCode = getKeyCodeFromEvent (ev);
 
@@ -956,6 +960,8 @@ public:
 
     void redirectModKeyChange (NSEvent* ev)
     {
+        GLOBAL_keycode_of_last_event = [ev keyCode];        // Added by DECYNE4
+
         // (need to retain this in case a modal loop runs and our event object gets lost)
         const NSUniquePtr<NSEvent> r ([ev retain]);
 

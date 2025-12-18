@@ -36,6 +36,8 @@
  #include <juce_audio_plugin_client/AAX/juce_AAX_Modifier_Injector.h>
 #endif
 
+int GLOBAL_keycode_of_last_event = 0;       // Added by DECYNE4
+
 namespace juce
 {
 
@@ -4135,6 +4137,7 @@ private:
             //==============================================================================
             case WM_KEYDOWN:
             case WM_SYSKEYDOWN:
+                GLOBAL_keycode_of_last_event = ((lParam & 0xFF0000) >> 16);       // Added by DECYNE4
                 if (doKeyDown (wParam))
                     return 0;
 
@@ -4143,6 +4146,7 @@ private:
 
             case WM_KEYUP:
             case WM_SYSKEYUP:
+                GLOBAL_keycode_of_last_event = ((lParam & 0xFF0000) >> 16);       // Added by DECYNE4
                 if (doKeyUp (wParam))
                     return 0;
 
