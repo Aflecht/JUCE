@@ -80,10 +80,6 @@ private:
 
 #endif
 
-#if JUCE_WINDOWS && JUCE_WIN_PER_MONITOR_DPI_AWARE
- extern JUCE_API double getScaleFactorForWindow (HWND);
-#endif
-
 static bool contextHasTextureNpotFeature()
 {
     if (getOpenGLVersion() >= Version (2))
@@ -472,9 +468,7 @@ public:
 
             const auto newArea = globalArea.withZeroOrigin() * displayScale;
            #else
-            const auto newArea = desktop.getDisplays()
-                                        .logicalToPhysical (globalArea)
-                                                       .withZeroOrigin();
+            const auto newArea = (globalArea.toFloat() * peer->getPlatformScaleFactor()).withZeroOrigin().toNearestInt();
            #endif
 
             // On Windows some hosts (Pro Tools 2022.7) do not take the current DPI into account
